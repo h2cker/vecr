@@ -24,7 +24,7 @@ pip install 'vecr-compress[langchain]'
 ## Usage
 
 ```python
-from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
+from langchain.messages import AIMessage, HumanMessage, SystemMessage
 from vecr_compress.adapters.langchain import VecrContextCompressor
 
 compressor = VecrContextCompressor(budget_tokens=2000)
