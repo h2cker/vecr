@@ -1,5 +1,7 @@
 # vecr-compress
 
+English | [中文](README.zh-CN.md)
+
 **Auditable, deterministic context compression for LLMs.** Structured data — order IDs, URLs, dates, citations, code — survives compression by an explicit regex whitelist you can inspect, extend, and audit. Every pin and every drop is logged: you get a `retained_matches` list and a `dropped_segments` list on every call.
 
 [![PyPI version](https://img.shields.io/pypi/v/vecr-compress)](https://pypi.org/project/vecr-compress/)
