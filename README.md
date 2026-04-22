@@ -22,25 +22,33 @@ from vecr_compress import compress
 messages = [
     {"role": "system", "content": "You are a refund analyst."},
     {"role": "user", "content":
-        "Hello! Thanks for reaching out. "
+        "Hi there! Thanks so much for reaching out today. "
+        "Hope you are having a wonderful morning. "
+        "We really appreciate you writing in. "
+        "Happy to take a look at this for you. "
+        "Totally understand how important this is. "
+        "Sure thing, let me pull up the record. "
+        "Absolutely, this is our top priority. "
         "The refund request references order ORD-99172 placed on 2026-03-15. "
         "The customer email is buyer@example.com. "
-        "We are reviewing it carefully. "
-        "Totally agree this is important. "
-        "The total charge was $1,499.00 on card ending 4242."},
+        "The total charge was $1,499.00 on card ending 4242. "
+        "Thanks again for your patience and have a great day!"},
     {"role": "user", "content": "What is the order ID and refund amount?"},
 ]
 
-result = compress(messages, budget_tokens=80)
+result = compress(messages, budget_tokens=80, protect_tail=1)
 
 for m in result.messages:
     print(m["role"], "->", m["content"])
 
 print(f"\n{result.original_tokens} -> {result.compressed_tokens} tokens "
-      f"({result.ratio:.2%}); pinned {len(result.retained_matches)} facts")
+      f"({result.ratio:.2%}); pinned {len(result.retained_matches)} facts, "
+      f"dropped {len(result.dropped_segments)} segments")
 ```
 
-Every structured fact in the input — `ORD-99172`, `2026-03-15`, `buyer@example.com`, `$1,499.00` — survives, because each is pinned by the retention whitelist before the knapsack budget packing runs. Filler phrases like "Hello! Thanks for reaching out" and "Totally agree this is important" are dropped.
+Every structured fact in the input — `ORD-99172`, `2026-03-15`, `buyer@example.com`, `$1,499.00` — survives, because each is pinned by the retention whitelist before the knapsack budget packing runs. Filler sentences like "We really appreciate you writing in" and "Sure thing, let me pull up the record" are dropped. On this fixture: 131 → 78 tokens (~60%), 3 facts pinned, 6 filler segments dropped.
+
+> Why `protect_tail=1`? By default the last two messages are pinned untouched (so the user turn with the actual question is always preserved). Here the penultimate turn is the body we *want* to compress, so we drop the tail pin to 1. See the [API docs](RETENTION.md) for `protect_tail` / `protect_system` semantics.
 
 ## The retention contract
 
@@ -65,12 +73,13 @@ vecr-compress ships 13 built-in rules. Any segment containing a match is **pinne
 Extend the contract with your own rules:
 
 ```python
+import re
 from vecr_compress import compress, RetentionRule, DEFAULT_RULES
 
 custom_rules = DEFAULT_RULES.with_extra([
     RetentionRule(name="invoice", pattern=re.compile(r"INV-\d{6}")),
 ])
-result = compress(messages, budget_tokens=2000, rules=custom_rules)
+result = compress(messages, budget_tokens=2000, retention_rules=custom_rules)
 ```
 
 Details on testing and extending rules: see [RETENTION.md](RETENTION.md).
@@ -103,7 +112,7 @@ The baseline heuristic scorer keeps all structured tokens in this synthetic fixt
 | 0.08 | 75% | 0% |
 | 0.04 | 75% | 0% |
 
-L2's cost: must-keep structured content pins the budget, leaving little room for plain-prose stealth needles at aggressive ratios (target 0.15 → actual 0.16 because the whitelist overrides the budget). On natural-language QA (HotpotQA probe, N=100) a blended question-aware scorer adds **+9.9pp supporting-fact survival** at ratio 0.5 over L2 alone — opt in with `compress(..., use_question_relevance=True)` (v0.1.3+). Off by default so the deterministic contract stays loud; worth turning on when your context is long prose and you have a real question. See [docs/BENCHMARK.md](docs/BENCHMARK.md) for details. Notes: filler detection was tightened in v0.1.1 to only drop whole-segment greetings, so prose starting with "please" / "thanks" is no longer discarded; the 2026-04-22 P0.B pass tightened `fn-call` / `hash` / `integer` regexes to reduce false-positive pinning, which lifted stealth survival at 0.30 / 0.15 without any regression in structured-needle survival (still 100% at every ratio).
+L2's cost: must-keep structured content pins the budget, leaving little room for plain-prose stealth needles at aggressive ratios (target 0.15 → actual 0.16 because the whitelist overrides the budget). On natural-language QA (HotpotQA probe, N=100) a blended question-aware scorer adds **+9.9pp supporting-fact survival** at ratio 0.5 over L2 alone — opt in with `compress(..., use_question_relevance=True)` (v0.1.3+). Off by default so the deterministic contract stays loud; worth turning on when your context is long prose and you have a real question. See [docs/BENCHMARK.md](docs/BENCHMARK.md) for details.
 
 Note: actual compression ratio may exceed the target when must-keep content is large — this is intentional and honest behaviour, not a bug.
 
@@ -131,7 +140,7 @@ Framework adapters are opt-in via extras (`[langchain]`, `[llamaindex]`). Core c
 **LangChain** — compress a chat history before passing it to any chat model:
 
 ```python
-from langchain_core.messages import HumanMessage, SystemMessage
+from langchain.messages import HumanMessage, SystemMessage
 from vecr_compress.adapters.langchain import VecrContextCompressor
 
 compressor = VecrContextCompressor(budget_tokens=2000)
@@ -140,6 +149,9 @@ compressed = compressor.compress_messages([
     HumanMessage(content="Long conversation history..."),
     HumanMessage(content="The actual question."),
 ])
+
+# NL-QA workload with a real user question? Opt in to question-aware blending:
+#   VecrContextCompressor(budget_tokens=2000, use_question_relevance=True)
 ```
 
 **LlamaIndex** — postprocess retrieved nodes before synthesis:
@@ -159,7 +171,7 @@ Two layers applied in order:
 1. **Retention whitelist** — segments matching any built-in rule are pinned and bypass the budget knapsack entirely.
 2. **Heuristic packing** — remaining segments are scored by entropy and structural signal (digits, braces, capitalization); filler lines like `Hi!`, `Thanks!`, `As an AI…` score 0.0 and are dropped before any budget math; the rest are packed greedily into the token budget.
 
-Callers can provide a custom `ScorerFn` to re-enable question-aware blending — `scorer.question_relevance` remains exported as a Jaccard helper. See [RETENTION.md](RETENTION.md) for details.
+Question-aware blending is opt-in via `compress(..., use_question_relevance=True)` (v0.1.3+); it layers a Jaccard overlap score (0.4 weight) on top of the heuristic (0.6 weight). Advanced callers can also pass a custom `ScorerFn` — `blended_score`, `heuristic_score`, and `question_relevance` are all exported from `vecr_compress`. See [RETENTION.md](RETENTION.md) for details.
 
 ## vs. alternatives
 

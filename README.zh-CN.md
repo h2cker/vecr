@@ -22,25 +22,33 @@ from vecr_compress import compress
 messages = [
     {"role": "system", "content": "You are a refund analyst."},
     {"role": "user", "content":
-        "Hello! Thanks for reaching out. "
+        "Hi there! Thanks so much for reaching out today. "
+        "Hope you are having a wonderful morning. "
+        "We really appreciate you writing in. "
+        "Happy to take a look at this for you. "
+        "Totally understand how important this is. "
+        "Sure thing, let me pull up the record. "
+        "Absolutely, this is our top priority. "
         "The refund request references order ORD-99172 placed on 2026-03-15. "
         "The customer email is buyer@example.com. "
-        "We are reviewing it carefully. "
-        "Totally agree this is important. "
-        "The total charge was $1,499.00 on card ending 4242."},
+        "The total charge was $1,499.00 on card ending 4242. "
+        "Thanks again for your patience and have a great day!"},
     {"role": "user", "content": "What is the order ID and refund amount?"},
 ]
 
-result = compress(messages, budget_tokens=80)
+result = compress(messages, budget_tokens=80, protect_tail=1)
 
 for m in result.messages:
     print(m["role"], "->", m["content"])
 
 print(f"\n{result.original_tokens} -> {result.compressed_tokens} tokens "
-      f"({result.ratio:.2%}); pinned {len(result.retained_matches)} facts")
+      f"({result.ratio:.2%}); pinned {len(result.retained_matches)} facts, "
+      f"dropped {len(result.dropped_segments)} segments")
 ```
 
-输入中所有结构化事实——`ORD-99172`、`2026-03-15`、`buyer@example.com`、`$1,499.00`——都会存活，因为它们在 token 预算打包之前就已被留存白名单 pin 住。而像 "Hello! Thanks for reaching out" 和 "Totally agree this is important" 这种填充句则会被丢弃。
+输入中所有结构化事实——`ORD-99172`、`2026-03-15`、`buyer@example.com`、`$1,499.00`——都会存活，因为它们在 token 预算打包之前就已被留存白名单 pin 住。而像 "We really appreciate you writing in" 和 "Sure thing, let me pull up the record" 这种填充句则会被丢弃。本 fixture 的实际效果：131 → 78 tokens（~60%），pin 住 3 个事实，丢掉 6 段填充。
+
+> 为什么加 `protect_tail=1`？默认情况下最后两条消息会被原样保护（保证"用户最新提问"始终在场）。这里倒数第二条就是我们想压缩的主体，所以把 tail 保护降到 1。`protect_tail` / `protect_system` 的完整语义见 [RETENTION.md](RETENTION.md)。
 
 ## 留存契约（Retention Contract）
 
@@ -65,12 +73,13 @@ vecr-compress 内置 13 条规则。任何命中规则的片段都会被 **pin**
 用自己的规则扩展契约：
 
 ```python
+import re
 from vecr_compress import compress, RetentionRule, DEFAULT_RULES
 
 custom_rules = DEFAULT_RULES.with_extra([
     RetentionRule(name="invoice", pattern=re.compile(r"INV-\d{6}")),
 ])
-result = compress(messages, budget_tokens=2000, rules=custom_rules)
+result = compress(messages, budget_tokens=2000, retention_rules=custom_rules)
 ```
 
 测试和扩展规则的详情见 [RETENTION.md](RETENTION.md)。
@@ -140,6 +149,9 @@ compressed = compressor.compress_messages([
     HumanMessage(content="Long conversation history..."),
     HumanMessage(content="The actual question."),
 ])
+
+# NL-QA 场景（问题明确、上下文偏散文）可开启 question 感知混合打分：
+#   VecrContextCompressor(budget_tokens=2000, use_question_relevance=True)
 ```
 
 **LlamaIndex** —— 在 synthesis 前对检索到的 node 做后处理：
@@ -159,7 +171,7 @@ kept = processor.postprocess_nodes(nodes, query_str="用户的问题")
 1. **留存白名单**：命中任何内置规则的片段会被 pin 住，完全跳过预算打包。
 2. **启发式打包**：剩余片段按熵和结构信号（数字、括号、大小写）打分；`Hi!`、`Thanks!`、`As an AI…` 这类填充句得 0 分，在任何预算数学之前就被丢弃；其余按 token 预算贪心打包。
 
-调用方也可以传入自定义的 `ScorerFn` 来重新启用 question 感知的混合打分——`scorer.question_relevance` 作为 Jaccard helper 继续导出。详情见 [RETENTION.md](RETENTION.md)。
+question 感知混合打分通过 `compress(..., use_question_relevance=True)` 开启（v0.1.3+），它在启发式分数（权重 0.6）之上叠加一层 Jaccard 重叠分数（权重 0.4）。高级用户也可以传入自定义 `ScorerFn`——`blended_score`、`heuristic_score`、`question_relevance` 都已从 `vecr_compress` 导出。详情见 [RETENTION.md](RETENTION.md)。
 
 ## 对比
 
