@@ -263,6 +263,116 @@ def test_llamaindex_duck_typed_round_trip(monkeypatch):
         assert isinstance(adapter_mod._node_text(n), str)
 
 
+def test_langchain_use_question_relevance_threads_to_core(monkeypatch):
+    """VecrContextCompressor(use_question_relevance=True) must forward the kwarg
+    to compress() so adapter users get the v0.1.3 opt-in without reaching for
+    the core API."""
+    import vecr_compress.adapters.langchain as adapter_mod
+
+    class HumanMessage:  # noqa: N801
+        def __init__(self, content):
+            self.content = content
+            self.tool_calls = []
+
+    class SystemMessage:  # noqa: N801
+        def __init__(self, content):
+            self.content = content
+            self.tool_calls = []
+
+    class AIMessage:  # noqa: N801
+        def __init__(self, content, tool_calls=None):
+            self.content = content
+            self.tool_calls = tool_calls or []
+
+    class ToolMessage:  # noqa: N801
+        def __init__(self, content, tool_call_id=""):
+            self.content = content
+            self.tool_call_id = tool_call_id
+            self.tool_calls = []
+
+    monkeypatch.setattr(
+        adapter_mod, "_require_langchain",
+        lambda: (AIMessage, object, HumanMessage, SystemMessage, ToolMessage),
+    )
+
+    seen: dict[str, object] = {}
+
+    def fake_compress(messages, **kwargs):
+        seen.update(kwargs)
+        from vecr_compress.compressor import CompressResult
+        return CompressResult(
+            messages=list(messages),
+            original_tokens=0,
+            compressed_tokens=0,
+            ratio=1.0,
+            dropped_segments=[],
+            retained_matches=[],
+            kept_message_indices=list(range(len(messages))),
+        )
+
+    monkeypatch.setattr(adapter_mod, "compress", fake_compress)
+
+    adapter_mod.VecrContextCompressor(
+        budget_tokens=2000, use_question_relevance=True
+    ).compress_with_report([HumanMessage("hi")])
+    assert seen.get("use_question_relevance") is True
+
+    seen.clear()
+    adapter_mod.VecrContextCompressor(budget_tokens=2000).compress_with_report(
+        [HumanMessage("hi")]
+    )
+    assert seen.get("use_question_relevance") is False
+
+
+def test_llamaindex_use_question_relevance_threads_to_core(monkeypatch):
+    """VecrNodePostprocessor(use_question_relevance=True) must forward to
+    compress() for both postprocess_nodes and compress_with_report paths."""
+    import vecr_compress.adapters.llamaindex as adapter_mod
+
+    monkeypatch.setattr(adapter_mod, "_require_llamaindex", lambda: None)
+
+    class _Inner:
+        text = "Raft uses randomized election timeouts."
+
+    class _FakeNode:
+        node = _Inner()
+        score = 0.9
+
+    seen: dict[str, object] = {}
+
+    def fake_compress(messages, **kwargs):
+        seen.update(kwargs)
+        from vecr_compress.compressor import CompressResult
+        return CompressResult(
+            messages=list(messages),
+            original_tokens=0,
+            compressed_tokens=0,
+            ratio=1.0,
+            dropped_segments=[],
+            retained_matches=[],
+            kept_message_indices=list(range(len(messages))),
+        )
+
+    monkeypatch.setattr(adapter_mod, "compress", fake_compress)
+
+    adapter_mod.VecrNodePostprocessor(
+        budget_tokens=1500, use_question_relevance=True
+    ).postprocess_nodes([_FakeNode()], query_str="how?")
+    assert seen.get("use_question_relevance") is True
+
+    seen.clear()
+    adapter_mod.VecrNodePostprocessor(
+        budget_tokens=1500, use_question_relevance=True
+    ).compress_with_report([_FakeNode()], query_str="how?")
+    assert seen.get("use_question_relevance") is True
+
+    seen.clear()
+    adapter_mod.VecrNodePostprocessor(budget_tokens=1500).postprocess_nodes(
+        [_FakeNode()], query_str="how?"
+    )
+    assert seen.get("use_question_relevance") is False
+
+
 def test_langchain_duck_typed_round_trip(monkeypatch):
     """Duck-typed LangChain round-trip through VecrContextCompressor — never skips."""
     import vecr_compress.adapters.langchain as adapter_mod

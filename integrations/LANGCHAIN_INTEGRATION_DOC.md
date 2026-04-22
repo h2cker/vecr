@@ -6,7 +6,8 @@
 
 | Property | Value |
 |---|---|
-| Package | `langchain-vecr-compress` |
+| Package | `vecr-compress` (install with `[langchain]` extra) |
+| Import path | `vecr_compress.adapters.langchain` |
 | License | Apache 2.0 |
 | Python | 3.10+ |
 | Retention contract | Deterministic (regex whitelist, 13 built-in rules) |
@@ -15,14 +16,16 @@
 ## Installation
 
 ```bash
-pip install langchain-vecr-compress
+pip install 'vecr-compress[langchain]'
 ```
+
+> The older `langchain-vecr-compress` shim package (0.1.0) re-exports this same adapter and is now deprecated in favour of the `[langchain]` extra on the core package. Existing installs keep working; new projects should use the extra.
 
 ## Usage
 
 ```python
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
-from langchain_vecr_compress import VecrContextCompressor
+from vecr_compress.adapters.langchain import VecrContextCompressor
 
 compressor = VecrContextCompressor(budget_tokens=2000)
 
@@ -44,7 +47,20 @@ result = compressor.compress_with_report(messages)
 print(f"Ratio: {result.ratio:.1%}, pinned facts: {len(result.retained_matches)}")
 ```
 
-Add custom retention rules for domain-specific identifiers:
+### Opt-in question-aware scoring (v0.1.3+)
+
+For natural-language QA workloads (long prose contexts, real user questions), enable `use_question_relevance=True` to blend Jaccard question overlap into the default heuristic scorer. On the HotpotQA dev probe (N=100, distractor split) this lifts supporting-fact survival at ratio 0.5 by **+9.9 percentage points** (58.0% → 67.9%). Off by default so the deterministic retention contract stays the loud promise — see [BENCHMARK.md](https://github.com/h2cker/vecr/blob/main/docs/BENCHMARK.md#hotpotqa-spike--where-the-synthetic-bench-hits-its-ceiling) for methodology.
+
+```python
+compressor = VecrContextCompressor(
+    budget_tokens=2000,
+    use_question_relevance=True,
+)
+```
+
+The last `HumanMessage` is auto-picked as the question; override with the `question=` kwarg on `compress_messages()` if needed.
+
+### Custom retention rules
 
 ```python
 import re

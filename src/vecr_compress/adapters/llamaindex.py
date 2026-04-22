@@ -57,6 +57,7 @@ class VecrNodePostprocessor:
         target_ratio: float | None = None,
         retention_rules: RetentionRules | None = None,
         scorer: ScorerFn | None = None,
+        use_question_relevance: bool = False,
         retain: bool = True,
     ):
         _require_llamaindex()
@@ -64,6 +65,7 @@ class VecrNodePostprocessor:
         self.target_ratio = target_ratio
         self.retention_rules = retention_rules
         self.scorer = scorer
+        self.use_question_relevance = use_question_relevance
         self.retain = retain
 
     def postprocess_nodes(
@@ -91,6 +93,7 @@ class VecrNodePostprocessor:
             question=question,
             retention_rules=self.retention_rules,
             scorer=self.scorer,
+            use_question_relevance=self.use_question_relevance,
             protect_tail=0,
             protect_system=False,
             retain=self.retain,
@@ -137,6 +140,7 @@ class VecrNodePostprocessor:
             question=query_str,
             retention_rules=self.retention_rules,
             scorer=self.scorer,
+            use_question_relevance=self.use_question_relevance,
             protect_tail=0,
             protect_system=False,
             retain=self.retain,

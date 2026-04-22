@@ -147,6 +147,7 @@ class VecrContextCompressor:
         question: str | None = None,
         retention_rules: RetentionRules | None = None,
         scorer: ScorerFn | None = None,
+        use_question_relevance: bool = False,
         protect_tail: int = 2,
         protect_system: bool = True,
         retain: bool = True,
@@ -157,6 +158,7 @@ class VecrContextCompressor:
         self.question = question
         self.retention_rules = retention_rules
         self.scorer = scorer
+        self.use_question_relevance = use_question_relevance
         self.protect_tail = protect_tail
         self.protect_system = protect_system
         self.retain = retain
@@ -180,6 +182,7 @@ class VecrContextCompressor:
             target_ratio=self.target_ratio,
             retention_rules=self.retention_rules,
             scorer=self.scorer,
+            use_question_relevance=self.use_question_relevance,
             protect_tail=self.protect_tail,
             protect_system=self.protect_system,
             retain=self.retain,
