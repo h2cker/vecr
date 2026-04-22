@@ -1,6 +1,13 @@
 # llama-index-postprocessor-vecr
 
-Retention-guaranteed node compression for LlamaIndex RAG pipelines. This partner package wraps [vecr-compress](https://github.com/h2cker/vecr) — the only LLM context compressor that makes a **deterministic retention contract**: order IDs, dates, URLs, emails, and code references are pinned by an auditable regex whitelist before any token-budget packing runs. Filler prose is dropped, high-signal sentences are ranked by question-aware Jaccard scoring, and your retrieved nodes arrive at the synthesizer with all structured facts intact.
+> **DEPRECATED (2026-04-22)**: This shim package is deprecated in favor of the main
+> `vecr-compress` package's extras. Install the integration directly with
+> `pip install vecr-compress[llamaindex]` (or `[langchain]`). This standalone
+> package will stop receiving updates; existing installations keep working but
+> should migrate before the next major release. See
+> [DEPRECATION_SHIMS.md](../../docs/DEPRECATION_SHIMS.md) for details.
+
+Retention-guaranteed node compression for LlamaIndex RAG pipelines. This partner package wraps [vecr-compress](https://github.com/h2cker/vecr) — an auditable, deterministic LLM context compressor that makes a **retention contract**: order IDs, dates, URLs, emails, and code references are pinned by an explicit regex whitelist before any token-budget packing runs. Filler prose is dropped, high-signal sentences are scored by entropy and structural signals (digits, braces, capitalization), and your retrieved nodes arrive at the synthesizer with all structured facts intact.
 
 ## Install
 
@@ -48,9 +55,9 @@ for n in kept:
 
 The node containing `ORD-99172`, `2026-03-15`, `$1,499.00`, and the URL is kept because each of those tokens fires a retention rule. The filler-only node is dropped even at an aggressive 60-token budget.
 
-## Query-aware scoring
+## Query string
 
-Pass `query_str` to bias retained sentences toward the user's question:
+Pass `query_str` to provide question context:
 
 ```python
 kept = processor.postprocess_nodes(
@@ -59,7 +66,7 @@ kept = processor.postprocess_nodes(
 )
 ```
 
-Internally, this runs Jaccard overlap between each sentence and the query before the knapsack budget packing step.
+The default scorer uses heuristic signals (entropy, structural patterns). Callers implementing a custom `ScorerFn` can use `scorer.question_relevance` (Jaccard overlap) to blend question-aware ranking if desired.
 
 ## Compression telemetry
 

@@ -1,5 +1,43 @@
 # Changelog
 
+## [0.1.3] - 2026-04-22
+
+### Added
+- `compress(..., use_question_relevance=True)` — opt-in question-aware scoring. Blends `question_relevance` (Jaccard) into `heuristic_score` at 0.6/0.4 weights. Off by default.
+- `vecr_compress.scorer.blended_score` — the composed scorer; exported publicly so callers can reuse or wrap it.
+- `heuristic_score` / `blended_score` / `question_relevance` are now top-level exports on `vecr_compress`.
+- `bench/hotpotqa_probe.py` — research-tier spike over N=100 HotpotQA dev examples. Probes supporting-fact survival on real multi-hop NL-QA.
+- `[bench]` optional-dependency extra (`pip install vecr-compress[bench]`) declaring `datasets>=2.14` for the HotpotQA loader.
+- New docs section in `docs/BENCHMARK.md` ("HotpotQA spike") documenting where the synthetic needle bench hits its ceiling.
+
+### Changed
+- Reversal of the v0.1.2 "no question-aware uplift" claim for natural-language workloads. HotpotQA probe shows +9.9pp supporting-fact survival at ratio 0.5 from restoring the Jaccard blend (58.0% → 67.9%). The synthetic needle bench did not see this because it saturates at 100% on structured needles. v0.1.2's removal was too broad; v0.1.3 makes blending opt-in rather than default.
+- Docstrings across `scorer.py` / `compressor.py` now describe the opt-in explicitly.
+
+### Notes
+- Default behavior is unchanged — passing no new kwarg gives you v0.1.2 semantics bit-for-bit. Enabling `use_question_relevance=True` is a caller-side decision appropriate for NL-QA workloads.
+
+## [0.1.2] - 2026-04-22
+
+### Changed
+- Removed L3 question-aware Jaccard from default scorer path. Benchmark (594 trials) showed zero uplift over L2 alone; keeping it in docs and code path was misleading.
+- `question_relevance` function remains exposed as a helper for callers implementing custom `ScorerFn` who want to re-enable Jaccard blending.
+- Updated `docs/BENCHMARK.md` to reflect 2-config sweep (baseline + L2), 396 trials.
+- Documentation (comparison.md, when-to-use.md, RETENTION.md, compressor.py module docstring) reworded from "three layers" to "two layers: retention + heuristic".
+
+### Documentation
+- README rewritten: headline emphasizes "auditable" over "the only…" claim; "Three layers" architecture collapsed to two to match the P1.A scorer change; removed the repeated "Try to get this guarantee…" tagline (was overselling).
+- pyproject.toml description updated to match the new README headline.
+- vs. alternatives table updated: "Jaccard knapsack" → "heuristic knapsack" to reflect the P1.A scorer change.
+- "Choose vecr-compress when..." paragraph reworded to avoid "compliance or correctness risk you cannot accept" (overpromise for v0.1 alpha) — now emphasizes "auditable, extensible whitelist you can reason about end-to-end."
+- Added `bench/latency.py` and a Latency section to `docs/BENCHMARK.md` (3 sizes × 2 budgets, p50/p95/p99 on Apple M3 Max). Replaces the old hand-wavy "+20-60ms" figure, which was wrong in both directions — small inputs are faster, 50k-token inputs run ~100-125 ms because tokenization dominates.
+
+### Dev dependencies
+- Added `hypothesis>=6` to `[project.optional-dependencies].dev`. Required by `tests/test_retention_property.py` added earlier in this release cycle; was installed locally but missing from the declared dev-deps.
+
+### Notes
+- No API break. `compress()` `question` parameter is preserved and accepted for backward compatibility; default scorer just ignores it now. Custom scorers can still read it.
+
 ## 0.1.0 — 2026-04-22
 
 Initial public release.

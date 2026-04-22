@@ -59,8 +59,8 @@ my_rules = RetentionRules([
 ## What the contract does NOT guarantee
 
 - **Paraphrased versions of structured data.** If the text says "the order ID mentioned above" rather than `ORD-99172`, the literal match never fires. Only exact pattern matches are pinned.
-- **Low-structure content.** Prose sentences that contain no retention-matching token go through the scorer and may be dropped if they are low-signal relative to the question. Use question-aware scoring (`question=` parameter) to retain relevant prose.
-- **Semantic meaning.** Dropping a prose sentence that provides necessary context for a pinned fact will not be caught by retention rules. Combine retention (L2) with question-aware scoring (L3) for best results.
+- **Low-structure content.** Prose sentences that contain no retention-matching token go through the heuristic scorer and may be dropped if they are low-signal. The default scorer does not use the `question` argument (see [`docs/BENCHMARK.md`](docs/BENCHMARK.md) — question-Jaccard showed no uplift); to re-enable question-aware blending, pass a custom `scorer` callable and reuse `vecr_compress.scorer.question_relevance` as a helper.
+- **Semantic meaning.** Dropping a prose sentence that provides necessary context for a pinned fact will not be caught by retention rules. For prose recovery beyond what retention + the heuristic scorer deliver, implement a custom scorer (the `question_relevance` helper is exposed for exactly this extension point).
 
 ## Testing your rules
 

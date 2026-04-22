@@ -7,7 +7,7 @@ vecr is a **specialized** tool with a deliberately narrow niche. This doc exists
 - Long system prompt with structured facts that must not be silently dropped (IDs, URLs, citations, code spans, dates, numbers).
 - RAG pipeline where retrieved chunks contain IDs, URLs, or code that matter for answer correctness.
 - Regulatory / audit / compliance workloads where "the compressor quietly dropped the order number" is unacceptable.
-- Python project with non-critical latency tolerance (+20-60 ms overhead on a median prompt is fine).
+- Python project with non-critical latency tolerance (p95 ~10 ms on 5k-token contexts, ~100–125 ms on 50k-token contexts — see [BENCHMARK.md#latency](BENCHMARK.md#latency)).
 - Willing to self-host or import the library inline — there is no managed service in v0.1.
 - You want to layer compression on top of provider-native prompt caching and measure both effects separately.
 
@@ -42,7 +42,7 @@ Before flipping vecr on for real traffic, walk through this list:
 - [ ] Pin a specific `vecr-compress` version (library is pre-1.0; breaking changes likely).
 - [ ] Run your top 20 representative real prompts through `compress()` offline. Diff input vs output.
 - [ ] Verify that every structured fact that matters to you (IDs, URLs, citations, numeric totals) survives in the compressed output.
-- [ ] Measure added latency on your median prompt (typical: +20-60 ms).
+- [ ] Measure added latency on your median prompt. Published numbers: p95 ~1 ms on 500-token, ~10 ms on 5k-token, ~100–125 ms on 50k-token contexts (Apple M3 Max, tokenization-dominated). Re-measure on your hardware with `python -m bench.latency`.
 - [ ] Confirm budget safety: when must-keep content exceeds the budget, vecr overshoots budget rather than drop pinned facts — decide whether that's acceptable.
 - [ ] For the gateway: test the bypass path (`x-vecr-bypass: true`) so you know requests still succeed if vecr errors internally.
 - [ ] A/B a 5% traffic slice before full rollout. Compare answer quality, not just tokens.

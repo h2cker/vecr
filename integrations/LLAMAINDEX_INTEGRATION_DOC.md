@@ -1,6 +1,6 @@
 # vecr-compress Node Postprocessor
 
-[vecr-compress](https://github.com/h2cker/vecr) is an open-source LLM context compressor with a deterministic retention contract. In a RAG pipeline, it compresses retrieved nodes to fit a token budget while guaranteeing that structured tokens — order IDs, dates, URLs, emails, code references — are never dropped. Filler prose is hard-dropped; remaining content is ranked by question-aware Jaccard scoring.
+[vecr-compress](https://github.com/h2cker/vecr) is an open-source LLM context compressor with a deterministic retention contract. In a RAG pipeline, it compresses retrieved nodes to fit a token budget while guaranteeing that structured tokens — order IDs, dates, URLs, emails, code references — are never dropped. Filler prose is hard-dropped; remaining content is scored by entropy and structural signals (digits, braces, capitalization) and packed greedily into the token budget.
 
 ## Overview
 

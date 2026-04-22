@@ -1,16 +1,16 @@
 # vecr-compress
 
-**The only LLM context compressor with a deterministic retention contract.** Your order IDs, URLs, code, dates, and citations survive compression — not probabilistically, not by LLM judgment, but by an auditable regex whitelist you can inspect and extend.
+**Auditable, deterministic context compression for LLMs.** Structured data — order IDs, URLs, dates, citations, code — survives compression by an explicit regex whitelist you can inspect, extend, and audit. Every pin and every drop is logged: you get a `retained_matches` list and a `dropped_segments` list on every call.
 
 [![PyPI version](https://img.shields.io/pypi/v/vecr-compress)](https://pypi.org/project/vecr-compress/)
 [![Python versions](https://img.shields.io/pypi/pyversions/vecr-compress)](https://pypi.org/project/vecr-compress/)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue)](LICENSE)
-[![Tests](https://img.shields.io/badge/tests-33%20passed%2C%203%20framework--gated-brightgreen)](#benchmark-reproducible)
+[![Tests](https://img.shields.io/badge/tests-passing-brightgreen)](#benchmark-reproducible)
 [![Downloads](https://img.shields.io/pypi/dm/vecr-compress)](https://pypi.org/project/vecr-compress/)
 
 ## Why this exists
 
-A 2026 Factory.ai production study found that "artifact tracking" (IDs, file paths, error codes) is the worst-compressed category across every compressor tested — scoring just 2.19–2.45 out of 5.0, worse even than OpenAI's native compaction (3.43/5.0). No shipped library offers a deterministic retention primitive: they all rely on LLM judgment or learned scoring that can silently drop a customer ID, a transaction amount, or a compliance citation. vecr-compress solves exactly that gap. It does not claim the highest compression ratio — that is Compresr's lane. It claims the only compressor you can make a promise to your compliance team about.
+A 2026 Factory.ai production study found that "artifact tracking" (IDs, file paths, error codes) is the worst-compressed category across every compressor tested — scoring just 2.19–2.45 out of 5.0, worse even than OpenAI's native compaction (3.43/5.0). No shipped library offers a deterministic retention primitive: they all rely on LLM judgment or learned scoring that can silently drop a customer ID, a transaction amount, or a compliance citation. vecr-compress solves exactly that gap. It does not claim the highest compression ratio — that is Compresr's lane. It offers an auditable, extensible whitelist-based compressor you can reason about end-to-end.
 
 ## 30-second example
 
@@ -40,8 +40,6 @@ print(f"\n{result.original_tokens} -> {result.compressed_tokens} tokens "
 
 Every structured fact in the input — `ORD-99172`, `2026-03-15`, `buyer@example.com`, `$1,499.00` — survives, because each is pinned by the retention whitelist before the knapsack budget packing runs. Filler phrases like "Hello! Thanks for reaching out" and "Totally agree this is important" are dropped.
 
-Try to get this guarantee from any summarization-based compressor.
-
 ## The retention contract
 
 vecr-compress ships 13 built-in rules. Any segment containing a match is **pinned** — kept regardless of token budget. If total pinned content exceeds the budget, the compressor returns all pinned segments and logs a warning rather than silently dropping facts.
@@ -55,12 +53,12 @@ vecr-compress ships 13 built-in rules. Any segment containing a match is **pinne
 | `url` | `https://api.example.com/v2/orders` | Endpoints, evidence links, sources |
 | `path` | `/var/log/app/error.log`, `C:/data/report.csv` | File references, error locations |
 | `code-span` | `` `raise ValueError(msg)` `` | Inline code in prose |
-| `fn-call` | `process_refund(order_id, amount)` | Function references in code review |
+| `fn-call` | `process_refund(order_id, amount)`, `obj.method(a, b)` (code-like identifiers only) | Function references in code review |
 | `citation` | `[12]`, `[Smith 2023]` | Academic and legal citations |
 | `json-kv` | `"status": "pending_review"` | Structured payload fields |
-| `hash` | `a3f9b2c1` (8+ hex chars) | Git SHAs, content digests |
+| `hash` | `9f3ab2c4` (8+ hex chars, 2+ digits) | Git SHAs, content digests |
 | `number` | `$1,499.00`, `12.4%`, `v3.2.1` | Amounts, rates, version strings |
-| `integer` | `4242`, `99172` | IDs and reference numbers |
+| `integer` | `9172`, `99172`, `2026` (4+ digits) | IDs, reference numbers, years |
 
 Extend the contract with your own rules:
 
@@ -79,16 +77,16 @@ Details on testing and extending rules: see [RETENTION.md](RETENTION.md).
 
 Needle-in-haystack survival: 11 needles × 3 positions × 6 ratios × 3 configs = 594 trials (`bench/needle.py`).
 
-**Structured needles (7) — all three configs**
+**Structured needles (7) — baseline vs. L2 retention**
 
-| ratio | baseline | + L2 retention | + L3 question-aware |
-|---:|:---:|:---:|:---:|
-| 1.00 | 100% | 100% | 100% |
-| 0.50 | 100% | 100% | 100% |
-| 0.30 | 100% | 100% | 100% |
-| 0.15 | 100% | 100% | 100% |
-| 0.08 | 100% | 100% | 100% |
-| 0.04 | 100% | 100% | 100% |
+| ratio | baseline | + L2 retention |
+|---:|:---:|:---:|
+| 1.00 | 100% | 100% |
+| 0.50 | 100% | 100% |
+| 0.30 | 100% | 100% |
+| 0.15 | 100% | 100% |
+| 0.08 | 100% | 100% |
+| 0.04 | 100% | 100% |
 
 The baseline heuristic scorer keeps all structured tokens in this synthetic fixture. L2 turns that measurement into a **deterministic contract** — the same 100% holds across any workload, scorer, or distribution, not just this fixture. If `ORD-\d+` appears in the input, it will appear in the output.
 
@@ -98,16 +96,14 @@ The baseline heuristic scorer keeps all structured tokens in this synthetic fixt
 |---:|:---:|:---:|
 | 1.00 | 100% | 100% |
 | 0.50 | 100% | 100% |
-| 0.30 | 83% | 16.5% |
-| 0.15 | 75% | 0% |
+| 0.30 | 83% | 83% |
+| 0.15 | 75% | 67% |
 | 0.08 | 75% | 0% |
 | 0.04 | 75% | 0% |
 
-L2's cost: must-keep structured content pins the budget, leaving no room for plain-prose stealth needles at aggressive ratios (target 0.30 → actual 0.36 because the whitelist overrides the budget). L3 question-aware Jaccard gives no additional improvement over L2 in this bench — see [docs/BENCHMARK.md](docs/BENCHMARK.md) for details. Note: filler detection was tightened in v0.1.1 to only drop whole-segment greetings, so prose starting with "please" / "thanks" is no longer discarded.
+L2's cost: must-keep structured content pins the budget, leaving little room for plain-prose stealth needles at aggressive ratios (target 0.15 → actual 0.16 because the whitelist overrides the budget). On natural-language QA (HotpotQA probe, N=100) a blended question-aware scorer adds **+9.9pp supporting-fact survival** at ratio 0.5 over L2 alone — opt in with `compress(..., use_question_relevance=True)` (v0.1.3+). Off by default so the deterministic contract stays loud; worth turning on when your context is long prose and you have a real question. See [docs/BENCHMARK.md](docs/BENCHMARK.md) for details. Notes: filler detection was tightened in v0.1.1 to only drop whole-segment greetings, so prose starting with "please" / "thanks" is no longer discarded; the 2026-04-22 P0.B pass tightened `fn-call` / `hash` / `integer` regexes to reduce false-positive pinning, which lifted stealth survival at 0.30 / 0.15 without any regression in structured-needle survival (still 100% at every ratio).
 
 Note: actual compression ratio may exceed the target when must-keep content is large — this is intentional and honest behaviour, not a bug.
-
-Try to get this guarantee from any summarization-based compressor.
 
 To reproduce:
 
@@ -156,13 +152,12 @@ kept = processor.postprocess_nodes(nodes, query_str="the user's question")
 
 ## How it works (30-second tour)
 
-Three layers applied in order:
+Two layers applied in order:
 
 1. **Retention whitelist** — segments matching any built-in rule are pinned and bypass the budget knapsack entirely.
-2. **Filler hard-drop** — `Hi!`, `Thanks!`, `Sure thing.`, `As an AI…` score 0.0 and are dropped before any budget calculation.
-3. **Question-aware Jaccard scoring + knapsack packing** — remaining segments are scored by Jaccard overlap with the question (auto-picked from the last user message), then packed greedily into the token budget.
+2. **Heuristic packing** — remaining segments are scored by entropy and structural signal (digits, braces, capitalization); filler lines like `Hi!`, `Thanks!`, `As an AI…` score 0.0 and are dropped before any budget math; the rest are packed greedily into the token budget.
 
-Full technical details: [RETENTION.md](RETENTION.md).
+Callers can provide a custom `ScorerFn` to re-enable question-aware blending — `scorer.question_relevance` remains exported as a Jaccard helper. See [RETENTION.md](RETENTION.md) for details.
 
 ## vs. alternatives
 
@@ -172,9 +167,9 @@ Full technical details: [RETENTION.md](RETENTION.md).
 | **LLMLingua-2** | Probabilistic token classifier | Yes | None |
 | **LangChain DeepAgents compact** | Autonomous agent-triggered | Yes (LangChain) | None |
 | **Provider-native compaction** (OpenAI/Google) | Opaque, single-provider | No | None |
-| **vecr-compress** | Regex whitelist + Jaccard knapsack | Yes | **Deterministic, auditable** |
+| **vecr-compress** | Regex whitelist + heuristic knapsack | Yes | **Deterministic, auditable** |
 
-Choose Compresr for maximum compression ratio. Choose LLMLingua-2 for pure-Python research. Choose vecr-compress when structured data loss is a compliance or correctness risk you cannot accept.
+Choose Compresr for maximum compression ratio. Choose LLMLingua-2 for pure-Python research. Choose vecr-compress when you want an auditable, extensible whitelist-based compressor you can reason about end-to-end, and you can live with v0.1 limits (Python-only, sentence-level granularity, no streaming).
 
 ## What this does NOT do
 

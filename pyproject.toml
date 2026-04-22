@@ -4,8 +4,8 @@ build-backend = "hatchling.build"
 
 [project]
 name = "vecr-compress"
-version = "0.1.0"
-description = "Deterministic retention-guaranteed compression for LLM context (preserves IDs, URLs, code, citations)."
+version = "0.1.3"
+description = "Auditable, deterministic context compression for LLMs — structured data survives by regex whitelist, every decision logged."
 readme = "README.md"
 license = { file = "LICENSE" }
 requires-python = ">=3.10"
@@ -39,7 +39,10 @@ dependencies = [
 [project.optional-dependencies]
 langchain = ["langchain-core>=0.2"]
 llamaindex = ["llama-index-core>=0.10"]
-dev = ["pytest>=8", "ruff>=0.6"]
+dev = ["pytest>=8", "ruff>=0.6", "hypothesis>=6"]
+# Research-bench extras — NOT required for production install.
+# Used by bench/hotpotqa_probe.py for the HotpotQA retention spike.
+bench = ["datasets>=2.14"]
 
 [project.urls]
 Homepage = "https://github.com/h2cker/vecr"

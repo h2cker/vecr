@@ -94,10 +94,17 @@ _DEFAULT_RULE_LIST: tuple[RetentionRule, ...] = (
     ),
     # Backticked code spans.
     RetentionRule("code-span", re.compile(r"`[^`\n]+`")),
-    # Function calls: identifier(...) with at least one letter before the paren.
+    # Function calls with a code-like identifier (snake_case, CamelCase with
+    # a lower→upper transition, or dotted/scoped like obj.method) AND an
+    # argument shape that isn't just a bare word — i.e. contains a comma,
+    # ``=``, quote, digit, or ``.``. This avoids pinning prose constructs
+    # like ``run(quickly)`` or ``note(that it fails)``.
     RetentionRule(
         "fn-call",
-        re.compile(r"\b[a-zA-Z_][\w]*\([^)]{0,80}\)"),
+        re.compile(
+            r"\b(?:[a-z][a-z0-9]*_\w*|[A-Z][a-zA-Z0-9]*[a-z][A-Z]\w*|\w+\.\w+)"
+            r"\([^)]{0,120}?[,='\".0-9][^)]{0,120}?\)"
+        ),
     ),
     # Citation markers: [12], [Smith 2023], (Knuth, 1997)
     RetentionRule(
@@ -110,18 +117,25 @@ _DEFAULT_RULE_LIST: tuple[RetentionRule, ...] = (
         re.compile(r'"[\w_]+"\s*:\s*"[^"]{1,120}"'),
     ),
     # Hex hashes (git SHAs, crypto digests) — 8+ hex chars on a word boundary
-    # with at least one digit (prevents matching pure-alpha words like "deadbeef").
-    RetentionRule("hash", re.compile(r"\b(?=[0-9a-f]{8,}\b)(?=[a-f]*[0-9])[0-9a-f]{8,}\b")),
+    # with at least TWO digit characters. The two-digit floor rejects
+    # low-entropy hex-like English words (e.g. ``aaaaaaa1``, ``deadbeef``)
+    # while keeping real SHAs and content digests.
+    RetentionRule(
+        "hash",
+        re.compile(r"\b(?=[0-9a-f]{8,}\b)(?:[a-f]*[0-9]){2,}[0-9a-f]*\b"),
+    ),
     # --- Generic numerics last. ---
     # Formatted: "$1,299.00", "12.4%", "v3.2.1".
     RetentionRule(
         "number",
         re.compile(r"(?<![A-Za-z])[\$€£¥]?-?\d{1,3}(?:[,\.]\d+)+[%kKmMbB]?\b"),
     ),
-    # Bare integers of 2+ digits.
+    # Bare integers of 4+ digits — real order/invoice IDs and years are all
+    # ≥4 digits; 2- and 3-digit quantities in prose (``42 items``,
+    # ``120 users``) are not worth pinning.
     RetentionRule(
         "integer",
-        re.compile(r"(?<![A-Za-z_])\d{2,}(?![A-Za-z_])"),
+        re.compile(r"(?<![A-Za-z_])\d{4,}(?![A-Za-z_])"),
     ),
 )
 
@@ -130,8 +144,9 @@ DEFAULT_RULES: RetentionRules = RetentionRules(_DEFAULT_RULE_LIST)
 """The built-in retention rule set.
 
 Covers UUIDs, ISO dates, ORDER-style codes, emails, URLs, paths, backticked
-code, function calls, citations, JSON key-value pairs, hex hashes, formatted
-numbers, and bare integers with 2+ digits.
+code, code-like function calls, citations, JSON key-value pairs, hex hashes
+(8+ hex chars with 2+ digits), formatted numbers, and bare integers with
+4+ digits.
 """
 
 

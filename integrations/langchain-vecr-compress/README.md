@@ -1,6 +1,13 @@
 # langchain-vecr-compress
 
-Drop-in LangChain integration for [vecr-compress](https://github.com/h2cker/vecr) — the only LLM context compressor with a **deterministic retention contract**. Before your chat history reaches the model, vecr-compress pins every order ID, URL, date, email, and code reference using an auditable regex whitelist, then packs the remaining budget with the most question-relevant sentences. Structured data never disappears silently; tool calls round-trip intact. This partner package is a thin shim so you can install it with the standard LangChain pattern and get started immediately, with all logic staying in the `vecr-compress` core.
+> **DEPRECATED (2026-04-22)**: This shim package is deprecated in favor of the main
+> `vecr-compress` package's extras. Install the integration directly with
+> `pip install vecr-compress[langchain]` (or `[llamaindex]`). This standalone
+> package will stop receiving updates; existing installations keep working but
+> should migrate before the next major release. See
+> [DEPRECATION_SHIMS.md](../../docs/DEPRECATION_SHIMS.md) for details.
+
+Drop-in LangChain integration for [vecr-compress](https://github.com/h2cker/vecr) — an auditable, deterministic LLM context compressor with a **retention contract**. Before your chat history reaches the model, vecr-compress pins every order ID, URL, date, email, and code reference using an explicit regex whitelist, then packs the remaining budget with heuristically scored sentences (entropy + structural signals). Structured data never disappears silently; tool calls round-trip intact. This partner package is a thin shim so you can install it with the standard LangChain pattern and get started immediately, with all logic staying in the `vecr-compress` core.
 
 ## Install
 

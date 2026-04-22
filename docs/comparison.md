@@ -23,7 +23,7 @@ vecr's deliberate niche in that landscape is narrow and disciplined: *retention-
 |---|---|---|---|---|---|
 | Open source | Apache 2.0 | Apache 2.0 | MIT | N/A (provider) | MIT |
 | Language | Python | Go | Python | — | Python / TS |
-| Approach | Retention whitelist + Jaccard + knapsack | LLM summarization + phantom tools | Token classification (small LM) | Provider-side prefix cache + compaction API | Agent-driven `compact` tool |
+| Approach | Retention whitelist + heuristic knapsack | LLM summarization + phantom tools | Token classification (small LM) | Provider-side prefix cache + compaction API | Agent-driven `compact` tool |
 | Typical compression ratio | 3-10× (sentence-level) | Claimed up to 100× | 3-6× | Variable / opaque | Variable |
 | Structured-data retention | Regex whitelist — contractual | Best-effort via summarization | Best-effort via token keep-probability | Opaque to caller | Agent-driven heuristic |
 | Streaming | Planned (not v0.1) | Yes | No | Yes | Yes |
@@ -40,7 +40,7 @@ vecr's deliberate niche in that landscape is narrow and disciplined: *retention-
 - You need **guaranteed retention of structured data** — regulatory / audit / RAG correctness constraints where silently dropping an order ID, URL, citation, or code snippet is unacceptable.
 - You're Python-first and want a small, dependency-light library (`vecr-compress`) you can call inline — not a hosted service, not a proxy.
 - Your workload has long, partially-templated prompts (RAG chunks, chat history, repeated system instructions) where filler is real and sentence-level pruning is enough.
-- You can live with v0.1 limits: text-only, no streaming, no tool-call rewriting, +20-60 ms overhead on the median prompt.
+- You can live with v0.1 limits: text-only, no streaming, no tool-call rewriting. Latency is p95 ~10 ms on 5k-token contexts and ~100–125 ms on 50k-token contexts (tokenization-dominated) — see [BENCHMARK.md#latency](BENCHMARK.md#latency).
 
 ### Choose Compresr when
 
