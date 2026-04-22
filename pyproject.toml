@@ -1,0 +1,69 @@
+[build-system]
+requires = ["hatchling>=1.18"]
+build-backend = "hatchling.build"
+
+[project]
+name = "vecr-compress"
+version = "0.1.0"
+description = "Deterministic retention-guaranteed compression for LLM context (preserves IDs, URLs, code, citations)."
+readme = "README.md"
+license = { file = "LICENSE" }
+requires-python = ">=3.10"
+authors = [
+    { name = "vecr contributors" },
+    # maintainer email: <maintainer email placeholder>
+]
+maintainers = [
+    { name = "vecr contributors" },
+    # maintainer email: <maintainer email placeholder>
+]
+keywords = ["llm", "context", "compression", "prompt", "openai", "anthropic", "langchain", "llamaindex", "retention", "rag", "agents", "context-management", "token-optimization"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Software Development :: Libraries",
+    "Topic :: Text Processing :: Linguistic",
+    "Typing :: Typed",
+]
+dependencies = [
+    "tiktoken>=0.7",
+]
+
+[project.optional-dependencies]
+langchain = ["langchain-core>=0.2"]
+llamaindex = ["llama-index-core>=0.10"]
+dev = ["pytest>=8", "ruff>=0.6"]
+
+[project.urls]
+Homepage = "https://github.com/h2cker/vecr"
+Repository = "https://github.com/h2cker/vecr"
+Issues = "https://github.com/h2cker/vecr/issues"
+Documentation = "https://github.com/h2cker/vecr#readme"
+Changelog = "https://github.com/h2cker/vecr/blob/main/CHANGELOG.md"
+Benchmark = "https://github.com/h2cker/vecr/blob/main/docs/BENCHMARK.md"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/vecr_compress"]
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "src/vecr_compress",
+    "tests",
+    "examples",
+    "README.md",
+    "LICENSE",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

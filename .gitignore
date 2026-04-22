@@ -1,0 +1,84 @@
+# Claude Code local-only (intentionally not published)
+.claude/
+CLAUDE.md
+
+# Cleanup staging from earlier monorepo split (never commit)
+.cleanup-trash/
+
+# Local draft workspace (blog posts, scratch notes)
+drafts/
+
+# ---- Secrets ----
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+*.crt
+*.p12
+*.pfx
+secrets/
+credentials/
+
+# ---- Python ----
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Testing / coverage
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+coverage.xml
+*.cover
+.hypothesis/
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.ruff_cache/
+
+# Virtualenvs
+.venv/
+venv/
+env/
+ENV/
+
+# ---- OS ----
+.DS_Store
+Thumbs.db
+Desktop.ini
+*.swp
+*~
+
+# ---- Editors ----
+.vscode/
+.idea/
+*.iml
+.cursor/
+
+# ---- Misc ----
+*.log
+*.tmp
+.cache/
